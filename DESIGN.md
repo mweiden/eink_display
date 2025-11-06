@@ -53,8 +53,8 @@
    - Expose manual override flag for immediate rendering (e.g., `--once`).
 
 4. **Rendering Pipeline** (`eink_display/rendering/`)
-   - Layout constants describing columns/rows, fonts, padding.
-   - Utility to translate events into drawable blocks (current time indicator, meeting cards, header, footer metadata).
+   - Tufte-inspired layout mirroring the reference React implementation (timeline spine, staggered ticks, columnar labels).
+   - Utility to translate events into drawable blocks (current time indicator, timeline leaders, header metadata).
    - Use Pillow to draw text and shapes, applying monochrome conversion (Floyd–Steinberg dithering if needed).
    - Provide preview output to PNG for local debugging without device.
    - Include localization helpers for time strings (12h vs 24h if needed).
