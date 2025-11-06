@@ -12,32 +12,36 @@ Python application for driving a Waveshare 7.5" e-ink display with a daily calen
 
 ### Rendering preview images
 
-The rendering layer now mirrors the Tufte-style React reference layout while still running entirely in Python. Instantiate the
-`TufteDayRenderer` with an optional preview directory to emit PNGs for local iteration:
+We now call the original React renderer directly via a small Fastify/Puppeteer service that ships with the repository
+(`eink_display/rendering/node_renderer`). The Python helpers automatically install dependencies on first use, but you can also do
+so manually:
+
+```bash
+cd eink_display/rendering/node_renderer
+PUPPETEER_SKIP_DOWNLOAD=1 npm install
+```
+
+Render previews from Python by spinning up the service and posting events to it:
 
 ```python
 from datetime import datetime
 
-from eink_display.rendering import CalendarEvent, RendererConfig, TufteDayRenderer
+from eink_display.rendering import CalendarEvent, NodeRenderClient, NodeRenderServer
 
-config = RendererConfig(preview_output_dir="previews")
-renderer = TufteDayRenderer(config)
-image = renderer.render_day(
-    events=[
-        CalendarEvent(
-            title="Design Review",
-            start=datetime(2024, 5, 1, 9, 0),
-            end=datetime(2024, 5, 1, 10, 0),
-            location="Room 2A",
-        )
-    ],
-    now=datetime.now(),
-    preview_name="sample",
+event = CalendarEvent(
+    title="Design Review",
+    start=datetime(2024, 5, 1, 9, 0),
+    end=datetime(2024, 5, 1, 9, 45),
+    location="Room 2A",
 )
+
+with NodeRenderServer() as server:
+    client = NodeRenderClient(server.base_url)
+    client.render([event], output_path="calendar.png")
 ```
 
-The renderer saves `previews/sample.png` (when the directory is provided) and returns the Pillow `Image` instance for additional
-inspection or unit testing.
+The server emits a `480×800` layout rendered at `2×` device scale (`960×1600` PNG) so text remains crisp on the Waveshare panel.
+This is the same PNG that the integration tests validate.
 
 ## Testing
 

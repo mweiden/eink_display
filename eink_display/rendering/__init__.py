@@ -1,19 +1,10 @@
-"""Rendering utilities for composing the e-ink calendar view."""
+"""Bindings to the external Node renderer used for calendar previews."""
 
-from .tufte import (
-    CalendarEvent,
-    RendererConfig,
-    TufteDayRenderer,
-    assign_label_columns_top,
-    assign_overlap_columns,
-    compute_density_buckets,
-)
+from .node import CalendarEvent, NodeRenderClient, NodeRenderServer, ensure_node_dependencies
 
 __all__ = [
     "CalendarEvent",
-    "RendererConfig",
-    "TufteDayRenderer",
-    "assign_label_columns_top",
-    "assign_overlap_columns",
-    "compute_density_buckets",
+    "NodeRenderClient",
+    "NodeRenderServer",
+    "ensure_node_dependencies",
 ]
