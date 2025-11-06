@@ -208,3 +208,6 @@ __marimo__/
 
 # Node renderer artifacts
 node_modules/
+
+# Preview artifacts
+previews/

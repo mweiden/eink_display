@@ -21,27 +21,13 @@ cd eink_display/rendering/node_renderer
 PUPPETEER_SKIP_DOWNLOAD=1 npm install
 ```
 
-Render previews from Python by spinning up the service and posting events to it:
+Render previews with the provided helper script, which writes a sample schedule to `previews/tufte_day_sample.png` by default:
 
-```python
-from datetime import datetime
-
-from eink_display.rendering import CalendarEvent, NodeRenderClient, NodeRenderServer
-
-event = CalendarEvent(
-    title="Design Review",
-    start=datetime(2024, 5, 1, 9, 0),
-    end=datetime(2024, 5, 1, 9, 45),
-    location="Room 2A",
-)
-
-with NodeRenderServer() as server:
-    client = NodeRenderClient(server.base_url)
-    client.render([event], output_path="calendar.png")
+```bash
+python scripts/render_sample_calendar.py
 ```
 
-The server emits a `480×800` layout rendered at `2×` device scale (`960×1600` PNG) so text remains crisp on the Waveshare panel.
-This is the same PNG that the integration tests validate.
+Pass `--date YYYY-MM-DD` or `--output /path/to/file.png` to customise the rendered day or output path. The script emits a `480×800` layout rendered at `2×` device scale (`960×1600` PNG) so text remains crisp on the Waveshare panel. This is the same PNG that the integration tests validate.
 
 ## Testing
 
