@@ -59,5 +59,5 @@ def test_render_request_writes_png(tmp_path: Path, running_server: NodeRenderSer
     assert len(image_bytes) == output_file.stat().st_size
 
     with Image.open(output_file) as img:
-        assert img.size == (480 * 2, 800 * 2)
+        assert img.size == (800 * 2, 480 * 2)
         assert img.mode in {"RGBA", "RGB"}

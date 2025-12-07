@@ -8,7 +8,7 @@
     "node": ">=18.17"
   },
   "scripts": {
-    "build": "mkdir -p dist && npx babel TufteDayCalendar.js --out-file dist/TufteDayCalendar.cjs && npx tailwindcss -i styles/tailwind.css -o dist/tailwind.css --minify",
+    "build": "mkdir -p dist && npx babel TufteDayCalendar.js --out-file dist/TufteDayCalendar.cjs",
     "start": "NODE_ENV=production node render_server.js",
     "dev": "NODE_ENV=development node render_server.js",
     "health": "curl -s http://localhost:${PORT:-3000}/health || true"

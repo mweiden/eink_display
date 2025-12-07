@@ -68,10 +68,12 @@ class NodeRenderClient:
         day_start: int | None = None,
         day_end: int | None = None,
         show_density: bool = False,
-        width: int = 480,
-        height: int = 800,
+        width: int = 800,
+        height: int = 480,
         dpr: int = 2,
         image_format: str = "png",
+        current_minutes: int | None = None,
+        current_seconds: int | None = None,
     ) -> bytes:
         payload_events: list[dict[str, object]] = []
         for evt in events:
@@ -92,6 +94,10 @@ class NodeRenderClient:
             body["dayStart"] = day_start
         if day_end is not None:
             body["dayEnd"] = day_end
+        if current_minutes is not None:
+            body["currentMinutes"] = current_minutes
+        if current_seconds is not None:
+            body["currentSeconds"] = current_seconds
 
         data = json.dumps(body).encode("utf-8")
         request = urllib.request.Request(
