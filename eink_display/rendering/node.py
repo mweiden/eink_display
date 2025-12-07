@@ -7,6 +7,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -148,7 +149,8 @@ class NodeRenderServer:
         port = self.port or _find_open_port()
         env = self.env.copy()
         env["PORT"] = str(port)
-        env.setdefault("PUPPETEER_SKIP_DOWNLOAD", "1")
+        if "PUPPETEER_SKIP_DOWNLOAD" not in env and sys.platform.startswith("linux"):
+            env["PUPPETEER_SKIP_DOWNLOAD"] = "1"
 
         command = [self.node_executable, str(self.script)]
         self._process = subprocess.Popen(

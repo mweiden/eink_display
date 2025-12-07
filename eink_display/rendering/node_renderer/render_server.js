@@ -11,7 +11,7 @@ const chromium = require("@sparticuz/chromium");
 
 const BASE_CSS = `
 :root { color-scheme: light; }
-html,body { margin: 0; padding: 0; background: #ffffff; }
+html, body { margin: 0; padding: 0; background: #ffffff; font-family: Geneva, sans-serif; }
 .relative { position: relative; }
 .absolute { position: absolute; }
 .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
@@ -30,44 +30,32 @@ html,body { margin: 0; padding: 0; background: #ffffff; }
 .font-medium { font-weight: 500; }
 .leading-tight { line-height: 1.2; }
 .leading-none { line-height: 1; }
-
-/* Escaped arbitrary value utilities */
-.text-\$begin:math:display$32px\\$end:math:display$ { font-size: 32px; }
-.text-\$begin:math:display$24px\\$end:math:display$ { font-size: 24px; }
-.text-\$begin:math:display$20px\\$end:math:display$ { font-size: 20px; }
-.text-\$begin:math:display$15px\\$end:math:display$ { font-size: 15px; }
-.text-\$begin:math:display$14px\\$end:math:display$ { font-size: 14px; }
-.text-\$begin:math:display$13px\\$end:math:display$ { font-size: 13px; }
-.text-\$begin:math:display$12px\\$end:math:display$ { font-size: 12px; }
-.text-\$begin:math:display$10px\\$end:math:display$ { font-size: 10px; }
-
-/* Safe font-size utilities: escaped class selector + exact token match */
-.text-\[32px\], [class~="text-[32px]"] { font-size: 32px; }
-.text-\[24px\], [class~="text-[24px]"] { font-size: 24px; }
-.text-\[20px\], [class~="text-[20px]"] { font-size: 20px; }
-.text-\[15px\], [class~="text-[15px]"] { font-size: 15px; }
-.text-\[14px\], [class~="text-[14px]"] { font-size: 14px; }
-.text-\[13px\], [class~="text-[13px]"] { font-size: 13px; }
-.text-\[12px\], [class~="text-[12px]"] { font-size: 12px; }
-.text-\[10px\], [class~="text-[10px]"] { font-size: 10px; }
-.text-\[9px\],  [class~="text-[9px]"]  { font-size: 9px;  }
-
+.overflow-visible { overflow: visible; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.h-16 { height: 4rem; }
 .top-3 { top: 0.75rem; }
 .right-3 { right: 0.75rem; }
 .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
 .pr-1 { padding-right: 0.25rem; }
 .pl-2 { padding-left: 0.5rem; }
 .mt-2 { margin-top: 0.5rem; }
-.w-full { width: 100%; }
-.h-full { height: 100%; }
-.h-16 { height: 4rem; }
-.overflow-visible { overflow: visible; }
-
-.ml-\$begin:math:display$2px\\$end:math:display$ { margin-left: 2px; }
-.mr-\$begin:math:display$3px\\$end:math:display$ { margin-right: 3px; }
 .tracking-tight { letter-spacing: -0.01em; }
-.translate-y-\$begin:math:display$-5px\\$end:math:display$ { transform: translateY(-5px); }
-.translate-y-\$begin:math:display$5px\\$end:math:display$ { transform: translateY(5px); }
+
+/* Arbitrary value utilities commonly emitted by Tailwind */
+.text-\\[32px\\], [class~="text-[32px]"] { font-size: 32px; }
+.text-\\[24px\\], [class~="text-[24px]"] { font-size: 24px; }
+.text-\\[20px\\], [class~="text-[20px]"] { font-size: 20px; }
+.text-\\[15px\\], [class~="text-[15px]"] { font-size: 15px; }
+.text-\\[14px\\], [class~="text-[14px]"] { font-size: 14px; }
+.text-\\[13px\\], [class~="text-[13px]"] { font-size: 13px; }
+.text-\\[12px\\], [class~="text-[12px]"] { font-size: 12px; }
+.text-\\[10px\\], [class~="text-[10px]"] { font-size: 10px; }
+.text-\\[9px\\],  [class~="text-[9px]"]  { font-size: 9px; }
+.ml-\\[2px\\], [class~="ml-[2px]"] { margin-left: 2px; }
+.mr-\\[3px\\], [class~="mr-[3px]"] { margin-right: 3px; }
+.translate-y-\\[-5px\\], [class~="translate-y-[-5px]"] { transform: translateY(-5px); }
+.translate-y-\\[5px\\], [class~="translate-y-[5px]"] { transform: translateY(5px); }
 `;
 
 const fastify = Fastify({ logger: true });
@@ -83,9 +71,10 @@ async function ensureBrowser({ width = 480, height = 800, dpr = 2 } = {}) {
       headless: "new",
       args: ["--no-sandbox", "--disable-gpu", "--font-render-hinting=none"],
     };
+
     if (executablePath) {
       launchOptions.executablePath = executablePath;
-    } else {
+    } else if (process.platform === "linux") {
       launchOptions.executablePath = await chromium.executablePath();
       launchOptions.args = chromium.args;
       launchOptions.headless = chromium.headless;
