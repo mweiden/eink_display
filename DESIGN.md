@@ -1,5 +1,9 @@
 # E-Ink Calendar Display Design
 
+## Design "Fat-marker" Sketch
+
+<img width="862" height="829" alt="Screenshot 2025-11-02 at 2 02 00 PM" src="https://github.com/user-attachments/assets/0b4425b3-d8ca-4170-aded-a21cfca94eca" />
+
 ## System Overview
 - **Platform**: Raspberry Pi 5 running Raspberry Pi OS.
 - **Display**: Waveshare 7.5" e-Paper (800×480) mounted vertically.
