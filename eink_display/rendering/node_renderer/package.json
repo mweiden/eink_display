@@ -4,14 +4,32 @@
   "type": "module",
   "main": "render_server.js",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "mkdir -p dist && npx babel TufteDayCalendar.js --out-file dist/TufteDayCalendar.cjs && npx tailwindcss -i styles/tailwind.css -o dist/tailwind.css --minify",
+    "start": "NODE_ENV=production node render_server.js",
+    "dev": "NODE_ENV=development node render_server.js",
+    "health": "curl -s http://localhost:${PORT:-3000}/health || true"
+  },
   "dependencies": {
-    "@sparticuz/chromium": "^121.0.0",
+    "@babel/cli": "^7.26.0",
     "@babel/core": "^7.26.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.25.9",
     "@babel/preset-react": "^7.26.3",
-    "@babel/register": "^7.25.9",
-    "fastify": "^4.24.3",
-    "puppeteer": "^21.6.0",
+    "fastify": "^4.27.2",
+    "puppeteer": "^24.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
+  },
+  "optionalDependencies": {
+    "@sparticuz/chromium": "^121.0.0"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.28.5",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16"
   }
 }
