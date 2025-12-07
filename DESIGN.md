@@ -57,11 +57,13 @@
    - Expose manual override flag for immediate rendering (e.g., `--once`).
 
 4. **Rendering Pipeline** (`eink_display/rendering/`)
-   - Layout constants describing columns/rows, fonts, padding.
-   - Utility to translate events into drawable blocks (current time indicator, meeting cards, header, footer metadata).
-   - Use Pillow to draw text and shapes, applying monochrome conversion (Floyd–Steinberg dithering if needed).
-   - Provide preview output to PNG for local debugging without device.
-   - Include localization helpers for time strings (12h vs 24h if needed).
+   - Python surfaces the Google Calendar events to the React implementation we received.
+   - A bundled Fastify/Puppeteer service renders the JSX to HTML and screenshots it at 2× device scale using headless Chromium.
+   - `NodeRenderServer` manages the service lifecycle; `NodeRenderClient` posts events and stores the resulting PNG for preview or
+     hand-off to the display driver.
+   - Dependencies are vendored in `rendering/node_renderer` (React component, server harness, and Chromium binary via
+     `@sparticuz/chromium`).
+   - Integration tests spawn the service to guarantee parity with the reference layout.
 
 5. **Display Driver Adapter** (`eink_display/display/waveshare.py`)
    - Encapsulate Waveshare `epd7in5_V2` driver lifecycle (init, clear, display buffer, sleep).
