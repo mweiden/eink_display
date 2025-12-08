@@ -3,10 +3,9 @@ import puppeteer from "puppeteer";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
+import TufteDayCalendar from "./dist/TufteDayCalendar.cjs";
 
-//const { default: TufteDayCalendar } = require("./TufteDayCalendar.js")
-const TufteDayCalendar = require("./dist/TufteDayCalendar.cjs").default;
+const require = createRequire(import.meta.url);
 const chromium = require("@sparticuz/chromium");
 
 const fastify = Fastify({ logger: true });
