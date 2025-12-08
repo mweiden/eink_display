@@ -3,7 +3,7 @@ import puppeteer from "puppeteer";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRequire } from "node:module";
-import TufteDayCalendar from "./TufteDayCalendar.js";
+import TufteDayCalendar from "./dist/TufteDayCalendar.cjs";
 
 const require = createRequire(import.meta.url);
 const chromium = require("@sparticuz/chromium");

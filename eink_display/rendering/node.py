@@ -195,9 +195,7 @@ def ensure_node_dependencies(project_dir: Path | None = None) -> None:
     project_dir = project_dir or RENDERER_DIR
     package_lock = project_dir / "package-lock.json"
     node_modules = project_dir / "node_modules"
-
-    if node_modules.exists():
-        return
+    dist_bundle = project_dir / "dist" / "TufteDayCalendar.cjs"
 
     if not package_lock.exists():
         raise FileNotFoundError("package-lock.json not found; cannot install dependencies")
@@ -208,7 +206,12 @@ def ensure_node_dependencies(project_dir: Path | None = None) -> None:
 
     env = os.environ.copy()
     env.setdefault("PUPPETEER_SKIP_DOWNLOAD", "1")
-    subprocess.run([npm, "install"], cwd=str(project_dir), check=True, env=env)
+
+    if not node_modules.exists():
+        subprocess.run([npm, "install"], cwd=str(project_dir), check=True, env=env)
+
+    if not dist_bundle.exists():
+        subprocess.run([npm, "run", "build"], cwd=str(project_dir), check=True, env=env)
 
 
 def _find_open_port() -> int:
