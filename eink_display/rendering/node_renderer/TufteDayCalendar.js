@@ -267,6 +267,7 @@ const TufteDayCalendar = ({
                   bottom: 32,
                   width: 2,
                   backgroundColor: "#000",
+                  zIndex: 2,
                 }}
               />
               <div
@@ -278,6 +279,7 @@ const TufteDayCalendar = ({
                   height: 10,
                   borderRadius: "50%",
                   backgroundColor: "#000",
+                  zIndex: 2,
                 }}
               />
             </>
@@ -294,6 +296,7 @@ const TufteDayCalendar = ({
                 height: LANE_HEIGHT,
                 borderRadius: 10,
                 background: "repeating-conic-gradient(#fff 0% 25%, #000 0% 50%) 0 0 / 2px 2px",
+                zIndex: 1,
                 //border: "1px solid black",
               }}
             />
