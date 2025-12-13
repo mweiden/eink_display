@@ -26,7 +26,7 @@
             |
             v
 +------------------------+
-| Calendar Service Layer |
+| Rendering Service |
 +-----------+------------+
             |
             v
@@ -41,53 +41,50 @@
 ### Modules
 1. **Configuration & Secrets** (`eink_display/config.py`)
    - Load environment-based settings (calendar IDs, timezone, refresh cadence).
-   - Read Google API credentials from file path or env var.
+   - Read Google API credentials from file path or env var for the Node renderer.
    - Validate on startup and surface actionable error messages.
 
-2. **Calendar Client** (`eink_display/calendar/google_client.py`)
-   - Wrap Google Calendar API for authenticated requests.
-   - Fetch all events in the local day window (midnight to midnight, local TZ).
-   - Normalize events into internal dataclass (title, start/end, location, is_all_day, attendees?).
-   - Provide caching and retry logic with exponential backoff.
-
-3. **Scheduling & Refresh** (`eink_display/scheduler.py`)
+2. **Scheduling & Refresh** (`eink_display/scheduler.py`)
    - Calculate next trigger aligned to second :00 or :30.
    - Sleep until target and execute refresh callback.
    - Detect drift; if the cycle takes too long, immediately re-align.
    - Expose manual override flag for immediate rendering (e.g., `--once`).
 
-4. **Rendering Pipeline** (`eink_display/rendering/`)
-   - Python surfaces the Google Calendar events to the React implementation we received.
-   - A bundled Fastify/Puppeteer service renders the JSX to HTML and screenshots it at 2× device scale using headless Chromium.
-   - `NodeRenderServer` manages the service lifecycle; `NodeRenderClient` posts events and stores the resulting PNG for preview or
-     hand-off to the display driver.
-   - Dependencies are vendored in `rendering/node_renderer` (React component, server harness, and Chromium binary via
-     `@sparticuz/chromium`).
-   - Integration tests spawn the service to guarantee parity with the reference layout.
+3. **Rendering Pipeline** (`eink_display/rendering/`)
+   - A bundled Fastify/Puppeteer service owns both the Google Calendar fetch and the React rendering.
+   - The service queries Google Calendar directly using configured credentials, renders the JSX to HTML, and screenshots the root
+     route at 2× device scale using headless Chromium.
+   - `NodeRenderServer` manages the service lifecycle; `NodeRenderClient` only pulls the already-rendered PNG from the root path (no
+     Python event payloads).
+   - Dependencies are vendored in `rendering/node_renderer` (React component, server harness, Google API client, and Chromium
+     binary via `@sparticuz/chromium`).
+   - Integration tests spawn the service to guarantee parity with the reference layout without requiring Google access (the server
+     falls back to sample events in that case).
 
-5. **Display Driver Adapter** (`eink_display/display/waveshare.py`)
+4. **Display Driver Adapter** (`eink_display/display/waveshare.py`)
    - Encapsulate Waveshare `epd7in5_V2` driver lifecycle (init, clear, display buffer, sleep).
    - Accept Pillow image buffer and convert to the driver format.
    - Offer mock driver for development (saves PNGs/logs instead of pushing to hardware).
 
-6. **Application Orchestration** (`eink_display/app.py`)
+5. **Application Orchestration** (`eink_display/app.py`)
    - Parse CLI arguments, initialize logging.
-   - Load configuration, initialize calendar client, renderer, display adapter.
-   - Start scheduler; on each tick fetch events, render image, update display.
+   - Initialize renderer and display adapter; the renderer no longer receives event payloads from Python.
+   - Start scheduler; on each tick fetch the pre-rendered PNG from the Node server root and update the display.
    - Handle exceptions with retries and fallback rendering (e.g., "Data unavailable" panel).
    - On shutdown ensure display sleeps and resources released.
 
 7. **Testing & Tooling**
-   - Unit tests for calendar normalization, layout calculations, scheduler timing logic.
-   - Integration test pipeline mocking Google API and display driver to validate end-to-end refresh.
+   - Unit tests for renderer interaction, scheduler timing logic, and display plumbing.
+   - Integration test pipeline spinning up the Node renderer while mocking the display driver.
    - Linting (e.g., `ruff` or `flake8`) and formatting via `black` for consistent style.
    - Include `make` or `tox` tasks to run tests and lint.
 
 ## Data Flow
 1. Scheduler wakes at :00/:30.
-2. Calendar client retrieves and normalizes today's events.
-3. Renderer produces 800×480 portrait bitmap.
-4. Display adapter sends bitmap to hardware (or mock driver in dev).
+2. Node renderer fetches and normalizes today's Google Calendar events.
+3. Node renderer produces the 800×480 portrait PNG at the root route.
+4. Python downloads the PNG from `http://localhost:<port>/`, converts it to the e-ink bitmap, and sends it to hardware (or mock
+   driver in dev).
 5. Logging system records success/failure with timestamps.
 
 ## Error Handling & Resilience
@@ -114,8 +111,7 @@
 
 ## Next Steps
 1. Implement configuration loader and document environment setup.
-2. Establish Google Calendar client with mocked tests.
-3. Scaffold rendering module with placeholder layout to validate fonts/sizing.
-4. Integrate display driver and ensure mock driver works for CI.
-5. Build main loop and verify scheduler timing accuracy.
-6. Set up CI pipeline for linting and tests on commits.
+2. Harden Node renderer error handling and logging around Google Calendar access.
+3. Integrate display driver and ensure mock driver works for CI.
+4. Build main loop and verify scheduler timing accuracy.
+5. Set up CI pipeline for linting and tests on commits.

@@ -8,7 +8,6 @@ __all__ = [
     "__version__",
     "Scheduler",
     "next_half_minute_boundary",
-    "calendar",
     "AppConfig",
     "GoogleCalendarSettings",
     "load_config",
