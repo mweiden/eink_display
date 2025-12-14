@@ -8,6 +8,13 @@ import puppeteer from "puppeteer";
 
 const require = createRequire(import.meta.url);
 const TufteDayCalendar = require("./dist/TufteDayCalendar.cjs").default;
+let chromium = null;
+try {
+  const chromiumModule = require("@sparticuz/chromium");
+  chromium = chromiumModule?.default ?? chromiumModule;
+} catch {
+  chromium = null;
+}
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 480;
@@ -188,16 +195,51 @@ function parseReferenceTime(raw) {
 
 async function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer
-      .launch({
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      })
+    browserPromise = buildLaunchOptions()
+      .then((launchOptions) => puppeteer.launch(launchOptions))
       .catch((err) => {
         browserPromise = undefined;
         throw err;
       });
   }
   return browserPromise;
+}
+
+async function buildLaunchOptions() {
+  const defaultArgs = ["--no-sandbox", "--disable-setuid-sandbox"];
+  const envExecutable =
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    process.env.CHROMIUM_PATH ||
+    process.env.CHROME_PATH;
+  const options = {
+    args: defaultArgs,
+    headless: "new",
+  };
+
+  if (chromium && process.platform === "linux") {
+    try {
+      const executablePath = await chromium.executablePath();
+      if (executablePath) {
+        options.executablePath = executablePath;
+      }
+      options.args = chromium.args || options.args;
+      options.defaultViewport = chromium.defaultViewport || options.defaultViewport;
+      options.headless = chromium.headless ?? options.headless;
+      options.headless = chromium.headless ?? options.headless;
+    } catch (err) {
+      console.warn("Failed to resolve chromium executable", err);
+    }
+  } else if (chromium && process.platform !== "linux") {
+    console.warn(
+      "Detected @sparticuz/chromium but skipping because it only supports Linux environments."
+    );
+  }
+
+  if (!options.executablePath && envExecutable) {
+    options.executablePath = envExecutable;
+  }
+
+  return options;
 }
 
 async function renderPngFromHtml(html, { width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, dpr = DEFAULT_DPR }) {
