@@ -52,12 +52,12 @@
 
 3. **Rendering Pipeline** (`eink_display/rendering/`)
    - A bundled Fastify/Puppeteer service owns both the Google Calendar fetch and the React rendering.
-   - The service queries Google Calendar directly using configured credentials, renders the JSX to HTML, and screenshots the root
-     route at 2× device scale using headless Chromium.
-   - `NodeRenderServer` manages the service lifecycle; `NodeRenderClient` only pulls the already-rendered PNG from the root path (no
-     Python event payloads).
-   - Dependencies are vendored in `rendering/node_renderer` (React component, server harness, Google API client, and Chromium
-     binary via `@sparticuz/chromium`).
+   - The service exposes HTML at `/` for debugging plus a `/png` endpoint that rasterizes the same layout via Puppeteer using the
+     canonical fonts and CSS. Both routes accept an optional `now=<ISO8601>` query parameter so the caller can pin the highlighted
+     time.
+   - `NodeRenderServer` manages the service lifecycle; `NodeRenderClient` can pull either HTML or PNG, but the Python runtime
+     always requests PNG frames for the display.
+   - Dependencies are vendored in `rendering/node_renderer` (React component, server harness, Google API client).
    - Integration tests spawn the service to guarantee parity with the reference layout without requiring Google access (the server
      falls back to sample events in that case).
 
@@ -67,9 +67,10 @@
    - Offer mock driver for development (saves PNGs/logs instead of pushing to hardware).
 
 5. **Application Orchestration** (`eink_display/app.py`)
-   - Parse CLI arguments, initialize logging.
+   - Parse CLI arguments, initialize logging, and optionally start the bundled Node renderer (`--start-node-server`).
    - Initialize renderer and display adapter; the renderer no longer receives event payloads from Python.
-   - Start scheduler; on each tick fetch the pre-rendered PNG from the Node server root and update the display.
+   - Start scheduler; on each tick fetch the `/png` capture from the Node server (passing the current local timestamp so the UI
+     uses the Pi's clock) and update the display driver.
    - Handle exceptions with retries and fallback rendering (e.g., "Data unavailable" panel).
    - On shutdown ensure display sleeps and resources released.
 
@@ -82,8 +83,8 @@
 ## Data Flow
 1. Scheduler wakes at :00/:30.
 2. Node renderer fetches and normalizes today's Google Calendar events.
-3. Node renderer produces the 800×480 portrait PNG at the root route.
-4. Python downloads the PNG from `http://localhost:<port>/`, converts it to the e-ink bitmap, and sends it to hardware (or mock
+3. Node renderer produces the 800×480 portrait HTML at the root route.
+4. Python downloads the PNG from `http://localhost:<port>/png?now=<current time>` and sends the bitmap to hardware (or mock
    driver in dev).
 5. Logging system records success/failure with timestamps.
 
@@ -101,7 +102,7 @@
 | `TIMEZONE` | IANA timezone string. | System default |
 | `REFRESH_INTERVAL_SECONDS` | Refresh cadence (should remain 30). | `30` |
 | `DISPLAY_ORIENTATION` | `portrait` or `landscape`. | `portrait` |
-| `PREVIEW_OUTPUT_PATH` | Directory for optional PNG previews. | Disabled |
+| `PREVIEW_OUTPUT_PATH` | Directory for optional previews (HTML). | Disabled |
 
 ## Outstanding Questions
 - Authentication flow (service account vs OAuth) for unattended Pi deployment.

@@ -1,14 +1,13 @@
 import fs from "node:fs";
 import { google } from "googleapis";
 import Fastify from "fastify";
-import puppeteer from "puppeteer";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRequire } from "node:module";
+import puppeteer from "puppeteer";
 
 const require = createRequire(import.meta.url);
 const TufteDayCalendar = require("./dist/TufteDayCalendar.cjs").default;
-const chromium = require("@sparticuz/chromium");
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 480;
@@ -35,36 +34,8 @@ const SAMPLE_EVENTS = [
 ];
 
 const fastify = Fastify({ logger: true });
-
-const executablePath =
-  process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROMIUM_PATH || null;
-
-let browser;
-let page;
 let calendarService;
-
-async function ensureBrowser({ width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, dpr = DEFAULT_DPR } = {}) {
-  if (!browser) {
-    const launchOptions = {
-      headless: "new",
-      args: ["--no-sandbox", "--disable-gpu", "--font-render-hinting=none"],
-    };
-
-    if (executablePath) {
-      launchOptions.executablePath = executablePath;
-    } else if (process.platform === "linux") {
-      launchOptions.executablePath = await chromium.executablePath();
-      launchOptions.args = chromium.args;
-      launchOptions.headless = chromium.headless;
-    }
-    browser = await puppeteer.launch(launchOptions);
-  }
-  if (!page) {
-    page = await browser.newPage();
-  }
-  await page.setViewport({ width, height, deviceScaleFactor: dpr });
-  return { browser, page };
-}
+let browserPromise;
 
 function minutesSinceMidnight(date) {
   return date.getHours() * 60 + date.getMinutes();
@@ -132,15 +103,14 @@ function normalizeEvent(raw, fallbackStart) {
   };
 }
 
-async function fetchTodaysEvents() {
+async function fetchTodaysEvents(referenceDate = new Date()) {
   try {
     const service = await getCalendarService();
     if (!service) {
       return SAMPLE_EVENTS;
     }
 
-    const now = new Date();
-    const start = startOfDay(now);
+    const start = startOfDay(referenceDate);
     const end = endOfDay(start);
 
     const events = [];
@@ -172,7 +142,7 @@ async function fetchTodaysEvents() {
   }
 }
 
-async function renderCalendarImage({
+function renderCalendarHtml({
   events,
   dayStart,
   dayEnd,
@@ -180,12 +150,9 @@ async function renderCalendarImage({
   width = DEFAULT_WIDTH,
   height = DEFAULT_HEIGHT,
   dpr = DEFAULT_DPR,
-  format = "png",
   currentMinutes,
   currentSeconds,
 }) {
-  const { page } = await ensureBrowser({ width, height, dpr });
-
   const props = {
     events,
     ...(dayStart != null ? { dayStart } : {}),
@@ -204,17 +171,59 @@ async function renderCalendarImage({
         <body style="margin:0;background:#fff;font-family:Geneva, 'Helvetica Neue', Arial, sans-serif;">${html}</body>
       </html>`;
 
-  await page.setViewport({ width, height, deviceScaleFactor: dpr });
-  await page.setContent(pageHTML, { waitUntil: "networkidle0" });
+  return pageHTML;
+}
 
-  const isPNG = format === "png";
-  return page.screenshot({
-    fullPage: false,
-    type: isPNG ? "png" : "jpeg",
-    quality: isPNG ? undefined : 90,
-    captureBeyondViewport: false,
-    omitBackground: false,
-  });
+function parseReferenceTime(raw) {
+  if (!raw) {
+    return null;
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    fastify.log.warn({ raw }, "invalid 'now' query parameter; ignoring");
+    return null;
+  }
+  return parsed;
+}
+
+async function getBrowser() {
+  if (!browserPromise) {
+    browserPromise = puppeteer
+      .launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      })
+      .catch((err) => {
+        browserPromise = undefined;
+        throw err;
+      });
+  }
+  return browserPromise;
+}
+
+async function renderPngFromHtml(html, { width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, dpr = DEFAULT_DPR }) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width, height, deviceScaleFactor: dpr });
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    return await page.screenshot({ type: "png" });
+  } finally {
+    await page.close();
+  }
+}
+
+async function closeBrowser() {
+  if (!browserPromise) {
+    return;
+  }
+  try {
+    const browser = await browserPromise;
+    await browser.close();
+  } catch (err) {
+    fastify.log.warn({ err }, "failed to close browser cleanly");
+  } finally {
+    browserPromise = undefined;
+  }
 }
 
 let renderChain = Promise.resolve();
@@ -230,16 +239,51 @@ fastify.get("/health", async () => ({
   liveData: Boolean(credentialsPath && calendarIds.length > 0),
 }));
 
-fastify.get("/", async (request, reply) =>
-  serialize(async () => {
-    const events = await fetchTodaysEvents();
-    const buffer = await renderCalendarImage({ events, format: "png" });
-    reply.header("Content-Type", "image/png").send(buffer);
+fastify.get("/", async (request, reply) => {
+  const query = request.query ?? {};
+  const referenceTime = parseReferenceTime(query.now);
+  return serialize(async () => {
+    const now = referenceTime || new Date();
+    const events = await fetchTodaysEvents(now);
+    const html = renderCalendarHtml({
+      events,
+      currentMinutes: now.getHours() * 60 + now.getMinutes(),
+      currentSeconds: now.getSeconds(),
+    });
+    reply.header("Content-Type", "text/html; charset=utf-8").send(html);
   }).catch((err) => {
     fastify.log.error({ err }, "render failed");
     throw err;
-  })
-);
+  });
+});
+
+fastify.get("/png", async (request, reply) => {
+  const query = request.query ?? {};
+  const referenceTime = parseReferenceTime(query.now);
+  const width = Number.parseInt(query.width, 10) || DEFAULT_WIDTH;
+  const height = Number.parseInt(query.height, 10) || DEFAULT_HEIGHT;
+  const dpr = Number.isNaN(Number.parseFloat(query.dpr))
+    ? DEFAULT_DPR
+    : Number.parseFloat(query.dpr);
+
+  return serialize(async () => {
+    const now = referenceTime || new Date();
+    const events = await fetchTodaysEvents(now);
+    const html = renderCalendarHtml({
+      events,
+      currentMinutes: now.getHours() * 60 + now.getMinutes(),
+      currentSeconds: now.getSeconds(),
+      width,
+      height,
+      dpr,
+    });
+    const png = await renderPngFromHtml(html, { width, height, dpr });
+    reply.header("Content-Type", "image/png").send(png);
+  }).catch((err) => {
+    fastify.log.error({ err }, "png render failed");
+    throw err;
+  });
+});
 
 fastify.post("/render", async (request, reply) => {
   const {
@@ -250,13 +294,12 @@ fastify.post("/render", async (request, reply) => {
     width = DEFAULT_WIDTH,
     height = DEFAULT_HEIGHT,
     dpr = DEFAULT_DPR,
-    format = "png",
     currentMinutes,
     currentSeconds,
   } = request.body || {};
 
   return serialize(async () => {
-    const buffer = await renderCalendarImage({
+    const html = renderCalendarHtml({
       events,
       dayStart,
       dayEnd,
@@ -264,18 +307,18 @@ fastify.post("/render", async (request, reply) => {
       width,
       height,
       dpr,
-      format,
       currentMinutes,
       currentSeconds,
     });
 
-    const isPNG = format === "png";
-    reply.header("Content-Type", isPNG ? "image/png" : "image/jpeg").send(buffer);
+    reply.header("Content-Type", "text/html; charset=utf-8").send(html);
   }).catch((err) => {
     fastify.log.error({ err }, "render failed");
     throw err;
   });
 });
+
+fastify.addHook("onClose", closeBrowser);
 
 const port = process.env.PORT || 3000;
 const host = "0.0.0.0";
@@ -283,19 +326,9 @@ fastify.listen({ port, host }).then(() => {
   console.log(`Render server listening on http://${host}:${port}`);
 });
 
-async function shutdown() {
-  try {
-    if (page) await page.close();
-    if (browser) await browser.close();
-    await fastify.close();
-  } catch (err) {
-    console.error("Error during shutdown", err);
-  }
-}
-
 process.on("SIGINT", () => {
-  shutdown().finally(() => process.exit(0));
+  fastify.close().finally(() => process.exit(0));
 });
 process.on("SIGTERM", () => {
-  shutdown().finally(() => process.exit(0));
+  fastify.close().finally(() => process.exit(0));
 });

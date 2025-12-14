@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a sample calendar preview using the Node-based renderer."""
+"""Generate sample calendar previews (HTML or PNG) using the Node-based renderer."""
 
 from __future__ import annotations
 
@@ -14,7 +14,9 @@ if str(PROJECT_ROOT) not in sys.path:
 from eink_display.rendering import NodeRenderClient, NodeRenderServer
 
 
-DEFAULT_OUTPUT = Path(__file__).resolve().parents[1] / "previews" / "tufte_day_sample.png"
+PREVIEWS_DIR = Path(__file__).resolve().parents[1] / "previews"
+DEFAULT_HTML_OUTPUT = PREVIEWS_DIR / "tufte_day_sample.html"
+DEFAULT_PNG_OUTPUT = PREVIEWS_DIR / "tufte_day_sample.png"
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,28 +24,44 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=DEFAULT_OUTPUT,
-        help=f"Where to write the preview PNG (default: {DEFAULT_OUTPUT})",
+        default=None,
+        help="Where to write the preview file (defaults to previews/tufte_day_sample.<ext>).",
     )
     parser.add_argument(
         "--path",
         type=str,
-        default="/",
-        help="Server path to capture (default: root, which renders live calendar/sample events)",
+        default=None,
+        help="Server path to capture (defaults to '/' for HTML and '/png' for PNG captures).",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("html", "png"),
+        default="png",
+        help="Capture format. PNG hits the /png endpoint and writes a bitmap.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    output_path: Path = args.output
+    format_choice: str = args.format
+    output_path = args.output or (
+        DEFAULT_PNG_OUTPUT if format_choice == "png" else DEFAULT_HTML_OUTPUT
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    path = args.path
+    if path is None:
+        path = "/png" if format_choice == "png" else "/"
 
     with NodeRenderServer() as server:
         if server.base_url is None:
             raise RuntimeError("Render server failed to report a base URL")
         client = NodeRenderClient(server.base_url)
-        client.fetch_image(path=args.path, output_path=output_path)
+        if format_choice == "png":
+            image = client.fetch_png(path=path)
+            image.save(output_path)
+        else:
+            client.fetch_html(path=path, output_path=output_path)
 
     print(f"Wrote preview to {output_path}")
 

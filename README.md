@@ -1,9 +1,9 @@
 # eink_display
 [![CI](https://github.com/mweiden/eink_display/actions/workflows/ci.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml)
 
-<img width="1600" height="960" alt="tufte_day_sample" src="https://github.com/user-attachments/assets/7500c144-e438-408e-bb2e-a2e123cc38d7" />
+<img width="1600" height="960" alt="tufte_day_sample" src="previews/tufte_day_sample.png" />
 
-Python application for driving a Waveshare 7.5" e-ink display with a daily calendar view rendered from Google Calendar data. The Node renderer now owns calendar fetching and HTML rendering; Python simply downloads the pre-rendered PNG from the Node server's root path and pushes it to the display driver. See [DESIGN.md](DESIGN.md) for the architectural plan.
+Python application for driving a Waveshare 7.5" e-ink display with a daily calendar view rendered from Google Calendar data. The Node renderer now owns calendar fetching and HTML rendering; Python simply downloads the pre-rendered HTML document from the Node server's root path and pushes the rasterized result to the display driver. See [DESIGN.md](DESIGN.md) for the architectural plan.
 
 ## Configuration
 
@@ -31,7 +31,7 @@ CALENDAR_IDS=primary,team@example.com
 ### Running the renderer server
 
 The Fastify/Puppeteer service fetches Google Calendar data and renders the calendar at its root path. Start it with your
-credentials and calendar IDs, then open `http://localhost:${PORT:-3000}/` in a browser or let the Python code fetch the PNG from
+credentials and calendar IDs, then open `http://localhost:${PORT:-3000}/` in a browser or let the Python code fetch the HTML from
 that same URL:
 
 ```bash
@@ -41,7 +41,14 @@ PORT=3000 CALENDAR_IDS=primary GOOGLE_CREDENTIALS_PATH=/path/to/creds.json npm r
 ```
 
 When credentials are not available, the server falls back to bundled sample events so that previews and tests still render.
-Python no longer posts custom event payloads; it simply downloads the rendered PNG from the root path.
+Python no longer posts custom event payloads; it simply downloads the rendered output from the server.
+
+#### PNG endpoint and time overrides
+
+The Fastify service still serves the HTML document at `/`, but now also provides a `/png` route that rasterizes the same layout
+via Puppeteer. Both routes accept an optional `now=<ISO8601 timestamp>` query parameter so the client can control which
+timestamp the calendar highlights (useful when the Pi's clock drifts from another machine). The `/png` route also accepts
+`width`, `height`, and `dpr` overrides for debugging alternate resolutions.
 
 ### Rendering preview images
 
@@ -54,13 +61,28 @@ cd eink_display/rendering/node_renderer
 PUPPETEER_SKIP_DOWNLOAD=1 npm install
 ```
 
-Render previews with the provided helper script, which saves whatever the Node server renders at the root path (live calendar data or the built-in sample events) to `previews/tufte_day_sample.png` by default:
+Render previews with the provided helper script, which saves whatever the Node server renders (live calendar data or the built-in sample events) to `previews/tufte_day_sample.png` by default:
 
 ```bash
 python scripts/render_sample_calendar.py
 ```
 
-Pass `--output /path/to/file.png` or `--path /debug` to change the target file or server route. The script emits a `480×800` layout rendered at `2×` device scale (`960×1600` PNG) so text remains crisp on the Waveshare panel. This is the same PNG that the integration tests validate.
+Pass `--format html` to capture the raw markup instead (saves to `previews/tufte_day_sample.html` unless `--output` is provided) or override the server route with `--path /debug`. PNG captures hit the `/png` endpoint and mirror exactly what the device will display.
+
+### Running the display loop
+
+The `eink_display.app` module wires the scheduler, renderer client, and display driver together. Run it from the repository root:
+
+```bash
+python -m eink_display.app --start-node-server --display-driver mock --immediate
+```
+
+Useful flags:
+
+- `--start-node-server`: launch the bundled Node service (otherwise the app connects to `NODE_RENDER_URL` or `http://127.0.0.1:3000`).
+- `--display-driver {auto,waveshare,mock}`: choose the hardware backend; `--mock-output-dir` saves PNG frames for debugging.
+- `--once` / `--immediate`: control scheduler behaviour for one-off renders or dev loops.
+- `--node-timeout` / `--node-url`: tweak renderer connection details when managing the Node process separately.
 
 ## Testing
 
