@@ -5,6 +5,7 @@ Welcome! Please follow these guidelines when working in this repository:
 1. **Design Alignment**
    - Review `DESIGN.md` before implementing new features. Keep architecture and module structure aligned with the documented plan.
    - If you significantly change the approach, update `DESIGN.md` alongside the code.
+   - The Node renderer now owns calendar fetching and HTML rendering; Python only retrieves the rendered image for the e-ink driver. Keep changes consistent with this split.
 
 2. **Code Quality**
    - Write clear, well-structured Python following `black` formatting and `ruff` linting conventions.
