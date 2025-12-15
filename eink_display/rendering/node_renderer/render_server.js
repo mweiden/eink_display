@@ -8,12 +8,19 @@ import puppeteer from "puppeteer";
 
 const require = createRequire(import.meta.url);
 const TufteDayCalendar = require("./dist/TufteDayCalendar.cjs").default;
+const supportsSparticuzChromium = process.platform === "linux" && process.arch === "x64";
 let chromium = null;
-try {
-  const chromiumModule = require("@sparticuz/chromium");
-  chromium = chromiumModule?.default ?? chromiumModule;
-} catch {
-  chromium = null;
+if (supportsSparticuzChromium) {
+  try {
+    const chromiumModule = require("@sparticuz/chromium");
+    chromium = chromiumModule?.default ?? chromiumModule;
+  } catch {
+    chromium = null;
+  }
+} else if (process.platform === "linux") {
+  console.warn(
+    `Skipping @sparticuz/chromium because it only ships Linux x64 binaries (detected ${process.arch}).`
+  );
 }
 
 const DEFAULT_WIDTH = 800;
