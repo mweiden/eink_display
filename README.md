@@ -1,6 +1,8 @@
 # eink_display
 [![CI](https://github.com/mweiden/eink_display/actions/workflows/ci.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml)
 
+![IMG_2018](https://github.com/user-attachments/assets/9e32557a-776d-4715-9f18-ac93b5bade27)
+
 <img width="1600" height="960" alt="tufte_day_sample" src="previews/tufte_day_sample.png" />
 
 Python application for driving a Waveshare 7.5" e-ink display with a daily calendar view rendered from Google Calendar data. The Node renderer now owns calendar fetching and HTML rendering; Python simply downloads the pre-rendered HTML document from the Node server's root path and pushes the rasterized result to the display driver. See [DESIGN.md](DESIGN.md) for the architectural plan.
