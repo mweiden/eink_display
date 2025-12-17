@@ -20,3 +20,15 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Run tests
         run: pytest
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Node dependencies
+        working-directory: eink_display/rendering/node_renderer
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "1"
+        run: npm ci
+      - name: Run Node tests
+        working-directory: eink_display/rendering/node_renderer
+        run: node --test

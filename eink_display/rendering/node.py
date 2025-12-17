@@ -18,12 +18,14 @@ from pathlib import Path
 from typing import Mapping
 
 from PIL import Image
+import logging
 
 RENDERER_DIR = Path(__file__).resolve().parent / "node_renderer"
 SERVER_SCRIPT = RENDERER_DIR / "render_server.js"
 DEFAULT_NODE_EXECUTABLE = os.environ.get("NODE", "node")
 DEFAULT_RENDER_WIDTH = 800
 DEFAULT_RENDER_HEIGHT = 480
+LOGGER = logging.getLogger(__name__)
 
 
 def _format_datetime(value: datetime | None) -> str | None:
@@ -116,8 +118,23 @@ class NodeRenderClient:
         }
 
         url = self._build_url(path, params)
-        with urllib.request.urlopen(url, timeout=self.timeout) as response:
-            payload = response.read()
+        payload: bytes | None = None
+        attempts = 2
+        for attempt in range(1, attempts + 1):
+            try:
+                with urllib.request.urlopen(url, timeout=self.timeout) as response:
+                    payload = response.read()
+                break
+            except Exception as exc:
+                if attempt == attempts:
+                    raise
+                LOGGER.warning(
+                    "PNG fetch attempt %d/%d failed (%s); retrying", attempt, attempts, exc
+                )
+                time.sleep(1)
+
+        if payload is None:
+            raise RuntimeError("Failed to fetch PNG payload from renderer")
 
         buffer = BytesIO(payload)
         with Image.open(buffer) as image:

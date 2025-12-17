@@ -6,6 +6,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRequire } from "node:module";
 import puppeteer from "puppeteer";
 
+import { findSystemChromiumExecutable } from "./browser_launcher.js";
+
 const require = createRequire(import.meta.url);
 const TufteDayCalendar = require("./dist/TufteDayCalendar.cjs").default;
 const supportsSparticuzChromium = process.platform === "linux" && process.arch === "x64";
@@ -117,14 +119,30 @@ function normalizeEvent(raw, fallbackStart) {
   };
 }
 
+const EVENT_CACHE_TTL_MS = 2 * 60 * 1000;
+let eventsCache = {
+  key: null,
+  fetchedAt: 0,
+  events: null,
+};
+
 async function fetchTodaysEvents(referenceDate = new Date()) {
   try {
+    const start = startOfDay(referenceDate);
+    const cacheKey = start.toISOString();
+    if (
+      eventsCache.events &&
+      eventsCache.key === cacheKey &&
+      Date.now() - eventsCache.fetchedAt < EVENT_CACHE_TTL_MS
+    ) {
+      return eventsCache.events;
+    }
+
     const service = await getCalendarService();
     if (!service) {
       return SAMPLE_EVENTS;
     }
 
-    const start = startOfDay(referenceDate);
     const end = endOfDay(start);
 
     const events = [];
@@ -149,6 +167,11 @@ async function fetchTodaysEvents(referenceDate = new Date()) {
     }
 
     events.sort((a, b) => a.start - b.start || a.end - b.end || a.title.localeCompare(b.title));
+    eventsCache = {
+      key: cacheKey,
+      fetchedAt: Date.now(),
+      events,
+    };
     return events;
   } catch (err) {
     fastify.log.error({ err }, "Failed to fetch Google Calendar events; using sample data");
@@ -244,6 +267,13 @@ async function buildLaunchOptions() {
 
   if (!options.executablePath && envExecutable) {
     options.executablePath = envExecutable;
+  }
+
+  if (!options.executablePath && process.platform === "linux") {
+    const systemChromium = findSystemChromiumExecutable();
+    if (systemChromium) {
+      options.executablePath = systemChromium;
+    }
   }
 
   return options;

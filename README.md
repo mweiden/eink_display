@@ -84,6 +84,25 @@ Useful flags:
 - `--once` / `--immediate`: control scheduler behaviour for one-off renders or dev loops.
 - `--node-timeout` / `--node-url`: tweak renderer connection details when managing the Node process separately.
 
+### Running as a systemd service
+
+A sample unit file lives at `systemd/eink-display.service`. Adjust the `User`, `Group`, `WorkingDirectory`, `EnvironmentFile`, and `ExecStart` paths to match your deployment (e.g., point `ExecStart` at the virtualenv you use). Then install and enable the service:
+
+```bash
+sudo cp systemd/eink-display.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now eink-display.service
+```
+
+The unit loads environment variables from the `.env` file referenced in `EnvironmentFile`, so be sure that path is absolute and readable by the service user.
+
+To verify the service and inspect logs:
+
+```bash
+sudo systemctl status eink-display.service
+sudo journalctl -u eink-display.service -f
+```
+
 ## Testing
 
 Run the full automated test suite locally before opening a pull request:

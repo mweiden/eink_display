@@ -1,0 +1,20 @@
+[Unit]
+Description=eInk calendar display application
+After=network-online.target
+Wants=network-online.target systemd-networkd-wait-online.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/eink_display
+EnvironmentFile=-/home/admin/eink_display/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/admin/eink_display/.venv/bin/python -m eink_display.app --start-node-server --display-driver auto
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

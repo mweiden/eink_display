@@ -71,21 +71,21 @@ function assignLanes(events) {
 
 const EventList = ({ label, items }) => (
   <div style={{ paddingRight: "24px" }}>
-    <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.2 }}>{label}:</div>
+    <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}>{label}:</div>
     {items.length === 0 ? (
-      <div style={{ fontSize: 14, lineHeight: 1.2, color: "#4b5563" }}>None scheduled</div>
+      <div style={{ fontSize: 18, lineHeight: 1.2 }}>None scheduled</div>
     ) : (
       <ul style={{ paddingLeft: 0, margin: "6px 0 0 0", listStyle: "none" }}>
         {items.map((evt) => (
-          <li key={evt.id} style={{ fontSize: 14, lineHeight: 1.2, color: "#111827" }}>
+          <li key={evt.id} style={{ fontSize: 18, lineHeight: 1.2 }}>
             <div>
               <span style={{ paddingRight: "6px" }}>•</span>
               <span>{evt.title}</span>
             </div>
             {evt.where ? (
-              <div style={{ fontSize: 14, color: "#4b5563", lineHeight: 1.2, marginLeft: "14px" }}>{evt.where}</div>
+              <div style={{ fontSize: 18, lineHeight: 1.2, marginLeft: "14px" }}>{evt.where}</div>
             ) : null}
-            <div style={{ fontSize: 14, color: "#4b5563", lineHeight: 1.2, marginLeft: "14px" }}>
+            <div style={{ fontSize: 18, lineHeight: 1.2, marginLeft: "14px" }}>
               {formatHourMinuteRange(evt.start, evt.end)}
             </div>
           </li>
@@ -189,7 +189,7 @@ const TufteDayCalendar = ({
         <div style={{ minWidth: "170px", textAlign: "right" }}>
           <div
             style={{
-              fontSize: 32,
+              fontSize: 36,
               fontWeight: 500,
               letterSpacing: "-0.01em",
               lineHeight: 1,
@@ -204,14 +204,14 @@ const TufteDayCalendar = ({
               style={{
                 display: "inline-block",
                 width: 6,
-                fontSize: 12,
+                fontSize: 14,
                 lineHeight: 1,
                 transform: `translateY(${dotHigh ? "-9px" : "9px"})`,
               }}
             >
               ●
             </span>
-            <span style={{ paddingLeft: "4px", fontSize: 32 }}>{timeParts.suffix}</span>
+            <span style={{ paddingLeft: "4px", fontSize: 36 }}>{timeParts.suffix}</span>
           </div>
         </div>
       </div>
@@ -247,8 +247,7 @@ const TufteDayCalendar = ({
                     bottom: 0,
                     width: 40,
                     textAlign: "center",
-                    fontSize: 13,
-                    color: "#374151",
+                    fontSize: 16,
                   }}
                 >
                   {formatHourTick(minute)}

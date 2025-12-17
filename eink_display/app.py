@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--node-timeout",
         type=float,
-        default=30.0,
+        default=10.0,
         help="Timeout (seconds) for renderer startup and requests.",
     )
 
@@ -139,16 +139,21 @@ class AppRuntime:
         now = self.now_provider()
         self.logger.info("Refreshing display at %s", now.isoformat())
 
+        self._display.initialize()
+
         try:
             image = self._client.fetch_png(now=now)
         except Exception:
             self.logger.exception("Failed to fetch PNG from Node renderer")
+            self._sleep_display_safely()
             return
 
         try:
             self._display.display_image(image)
         except Exception:
             self.logger.exception("Failed to push frame to display")
+        finally:
+            self._sleep_display_safely()
 
     def close(self) -> None:
         if self._display:
@@ -170,6 +175,14 @@ class AppRuntime:
         self._client = None
         self._scheduler = None
         self._started = False
+
+    def _sleep_display_safely(self) -> None:
+        if not self._display:
+            return
+        try:
+            self._display.sleep()
+        except Exception:
+            self.logger.exception("Failed to put display into sleep mode")
 
     # Internal helpers -------------------------------------------------
     def _create_display_driver(self) -> DisplayDriver:
