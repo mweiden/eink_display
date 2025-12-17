@@ -37,7 +37,7 @@ def test_once_flag_triggers_single_refresh(monkeypatch):
 
     def client_factory(base_url: str, *, timeout: float):
         assert base_url == app.DEFAULT_NODE_URL
-        assert timeout == 90.0
+        assert timeout == 10.0
         return fake_client
 
     app.main(
@@ -105,4 +105,4 @@ def test_start_node_server_flag_launches_server():
     assert started["stop"] == 1
     assert scheduler_runs == [{"immediate": True, "iterations": 1}]
     assert fake_client.calls == 1
-    assert started["init"] == 90.0
+    assert started["init"] == 10.0
