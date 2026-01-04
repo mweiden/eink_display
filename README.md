@@ -52,6 +52,18 @@ via Puppeteer. Both routes accept an optional `now=<ISO8601 timestamp>` query pa
 timestamp the calendar highlights (useful when the Pi's clock drifts from another machine). The `/png` route also accepts
 `width`, `height`, and `dpr` overrides for debugging alternate resolutions.
 
+#### Renderer performance tuning
+
+The renderer runs headless Chromium and can be tuned for low-power hardware via environment variables:
+
+- `PUPPETEER_EXECUTABLE_PATH`: point to a custom Chromium binary (e.g., `/usr/bin/chromium-headless-shell`).
+- `PUPPETEER_HEADLESS`: set to `old` for older Chromium builds.
+- `PUPPETEER_LIGHTWEIGHT`: set to `1` to disable background services, extensions, and networking overhead.
+- `PUPPETEER_LAUNCH_TIMEOUT_MS`: increase the browser launch timeout (milliseconds).
+- `PUPPETEER_WAIT_UNTIL`: override the page render wait condition (defaults to `domcontentloaded`).
+- `PUPPETEER_WARMUP`: set to `1` to render a tiny frame on startup (avoids the first-request cold start).
+- `RENDER_DEFAULT_DPR`: override the default device pixel ratio when no `dpr` query is provided.
+
 ### Rendering preview images
 
 We now call the original React renderer directly via a small Fastify/Puppeteer service that ships with the repository

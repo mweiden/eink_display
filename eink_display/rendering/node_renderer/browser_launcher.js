@@ -4,6 +4,8 @@ import path from "node:path";
 const DEFAULT_ABSOLUTE_CANDIDATES = [
   "/usr/bin/chromium-browser",
   "/usr/bin/chromium",
+  "/usr/bin/chromium-headless-shell",
+  "/usr/lib/chromium/chromium-headless-shell",
   "/snap/bin/chromium",
   "/usr/bin/google-chrome",
   "/usr/bin/google-chrome-stable",
@@ -12,6 +14,7 @@ const DEFAULT_ABSOLUTE_CANDIDATES = [
 const DEFAULT_PATH_CANDIDATES = [
   "chromium-browser",
   "chromium",
+  "chromium-headless-shell",
   "google-chrome",
   "google-chrome-stable",
   "chrome",

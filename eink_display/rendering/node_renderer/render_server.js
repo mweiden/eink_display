@@ -27,7 +27,9 @@ if (supportsSparticuzChromium) {
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 480;
-const DEFAULT_DPR = 2;
+const DEFAULT_DPR = Number.isNaN(Number.parseFloat(process.env.RENDER_DEFAULT_DPR))
+  ? 2
+  : Number.parseFloat(process.env.RENDER_DEFAULT_DPR);
 
 const calendarIds = (process.env.CALENDAR_IDS || "")
   .split(",")
@@ -52,6 +54,7 @@ const SAMPLE_EVENTS = [
 const fastify = Fastify({ logger: true });
 let calendarService;
 let browserPromise;
+let pagePromise;
 
 function minutesSinceMidnight(date) {
   return date.getHours() * 60 + date.getMinutes();
@@ -235,16 +238,66 @@ async function getBrowser() {
   return browserPromise;
 }
 
+async function resetPage() {
+  if (!pagePromise) {
+    return;
+  }
+  try {
+    const page = await pagePromise;
+    await page.close();
+  } catch (err) {
+    fastify.log.warn({ err }, "failed to close page cleanly");
+  } finally {
+    pagePromise = undefined;
+  }
+}
+
+async function getPage({ width, height, dpr }) {
+  if (!pagePromise) {
+    pagePromise = getBrowser().then((browser) => browser.newPage());
+  }
+  const page = await pagePromise;
+  await page.setViewport({ width, height, deviceScaleFactor: dpr });
+  return page;
+}
+
 async function buildLaunchOptions() {
-  const defaultArgs = ["--no-sandbox", "--disable-setuid-sandbox"];
+  const defaultArgs = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--use-gl=swiftshader",
+  ];
   const envExecutable =
     process.env.PUPPETEER_EXECUTABLE_PATH ||
     process.env.CHROMIUM_PATH ||
     process.env.CHROME_PATH;
+  const headlessEnv = (process.env.PUPPETEER_HEADLESS || "").toLowerCase();
+  const headlessMode =
+    headlessEnv === "old" || headlessEnv === "true"
+      ? true
+      : headlessEnv === "false"
+      ? false
+      : "new";
+  const lightweightEnv = (process.env.PUPPETEER_LIGHTWEIGHT || "").toLowerCase();
+  const forceLightweight =
+    lightweightEnv === "1" || lightweightEnv === "true" || lightweightEnv === "yes";
+  const extraArgs = (process.env.PUPPETEER_ARGS || "")
+    .split(",")
+    .map((arg) => arg.trim())
+    .filter(Boolean);
+  const launchTimeoutMs = Number.parseInt(process.env.PUPPETEER_LAUNCH_TIMEOUT_MS, 10);
   const options = {
     args: defaultArgs,
-    headless: "new",
+    headless: headlessMode,
   };
+  if (!Number.isNaN(launchTimeoutMs) && launchTimeoutMs > 0) {
+    options.timeout = launchTimeoutMs;
+  }
+  if (extraArgs.length > 0) {
+    options.args = [...options.args, ...extraArgs];
+  }
 
   if (chromium && process.platform === "linux") {
     try {
@@ -276,18 +329,46 @@ async function buildLaunchOptions() {
     }
   }
 
+  const isHeadlessShell =
+    options.executablePath?.includes("chromium-headless-shell") ?? false;
+  if (forceLightweight || isHeadlessShell) {
+    const lightweightArgs = [
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--disable-translate",
+      "--disable-default-apps",
+      "--disable-component-update",
+      "--disable-features=TranslateUI,BackForwardCache,MediaRouter,OptimizationHints",
+      "--metrics-recording-only",
+      "--mute-audio",
+      "--single-process",
+      "--no-zygote",
+      "--disable-features=NetworkService,NetworkServiceInProcess,AudioServiceOutOfProcess",
+      "--disable-breakpad",
+      "--disable-ipc-flooding-protection",
+    ];
+    options.args = [...options.args, ...lightweightArgs];
+  }
+
+  if (process.env.PUPPETEER_DEBUG) {
+    console.log("Puppeteer launch options", options);
+  }
+
   return options;
 }
 
 async function renderPngFromHtml(html, { width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, dpr = DEFAULT_DPR }) {
-  const browser = await getBrowser();
-  const page = await browser.newPage();
+  const page = await getPage({ width, height, dpr });
+  const waitUntil = process.env.PUPPETEER_WAIT_UNTIL || "domcontentloaded";
   try {
-    await page.setViewport({ width, height, deviceScaleFactor: dpr });
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil });
     return await page.screenshot({ type: "png" });
-  } finally {
-    await page.close();
+  } catch (err) {
+    await resetPage();
+    throw err;
   }
 }
 
@@ -296,6 +377,7 @@ async function closeBrowser() {
     return;
   }
   try {
+    await resetPage();
     const browser = await browserPromise;
     await browser.close();
   } catch (err) {
@@ -310,6 +392,20 @@ function serialize(fn) {
   const next = renderChain.then(fn, fn);
   renderChain = next.catch(() => {});
   return next;
+}
+
+async function warmupRenderer() {
+  const html = "<!doctype html><html><head><meta charset=\"utf-8\" /></head><body></body></html>";
+  try {
+    await renderPngFromHtml(html, {
+      width: DEFAULT_WIDTH,
+      height: DEFAULT_HEIGHT,
+      dpr: DEFAULT_DPR,
+    });
+    fastify.log.info("Renderer warmup complete");
+  } catch (err) {
+    fastify.log.warn({ err }, "Renderer warmup failed");
+  }
 }
 
 fastify.get("/health", async () => ({
@@ -403,6 +499,11 @@ const port = process.env.PORT || 3000;
 const host = "0.0.0.0";
 fastify.listen({ port, host }).then(() => {
   console.log(`Render server listening on http://${host}:${port}`);
+  if ((process.env.PUPPETEER_WARMUP || "").toLowerCase() === "1") {
+    setTimeout(() => {
+      warmupRenderer();
+    }, 0);
+  }
 });
 
 process.on("SIGINT", () => {
