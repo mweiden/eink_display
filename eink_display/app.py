@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -215,6 +216,11 @@ class AppRuntime:
 
 def resolve_settings(args: argparse.Namespace) -> AppSettings:
     load_env_file(args.env_file)
+    timezone = os.environ.get("TIMEZONE")
+    if timezone and not os.environ.get("TZ"):
+        os.environ["TZ"] = timezone
+        if hasattr(time, "tzset"):
+            time.tzset()
     node_url = args.node_url or os.environ.get("NODE_RENDER_URL") or DEFAULT_NODE_URL
     if args.start_node_server:
         node_url = None

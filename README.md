@@ -15,6 +15,7 @@ Both the Node renderer and the Python wrapper read configuration from environmen
 | --- | --- |
 | `GOOGLE_CREDENTIALS_PATH` | Absolute path to the Google service account JSON used for Calendar API access. The file must exist when the Node renderer starts. |
 | `CALENDAR_IDS` | Comma-separated list of Google Calendar IDs to display (e.g., `primary,team@example.com`). |
+| `TIMEZONE` | IANA timezone (e.g., `America/Los_Angeles`). Also applied to the Python scheduler when `TZ` is unset. |
 
 Example `.env` file:
 

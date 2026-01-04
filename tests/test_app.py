@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import os
 from typing import Any
 
 from PIL import Image
@@ -106,3 +107,15 @@ def test_start_node_server_flag_launches_server():
     assert scheduler_runs == [{"immediate": True, "iterations": 1}]
     assert fake_client.calls == 1
     assert started["init"] == 10.0
+
+
+def test_timezone_from_env_sets_tz(monkeypatch, tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("TIMEZONE=America/Los_Angeles\n", encoding="utf-8")
+    monkeypatch.delenv("TZ", raising=False)
+
+    parser = app.build_parser()
+    args = parser.parse_args(["--env-file", str(env_file), "--display-driver", "mock"])
+    app.resolve_settings(args)
+
+    assert os.environ["TZ"] == "America/Los_Angeles"
